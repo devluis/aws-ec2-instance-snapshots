@@ -10,6 +10,17 @@
 * keep 1 snapshot each month
 * All snapshot with description start equal to "AutoSnap:" will be rotated by this script
   
+  
+### setup
+
+$ git clone --recursive https://github.com/fborraccetti/aws-ec2-instance-snapshots
+$ cd aws-ec2-instance-snapshots/aws-sdk-for-php
+$ cp config-sample.inc.php config.inc.php
+
+edit config.inc.php and set access key and secret key from aws account security 
+
+
+  
 ### Parameters and options
 * @param v
 
