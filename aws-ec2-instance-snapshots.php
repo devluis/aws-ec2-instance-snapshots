@@ -209,7 +209,10 @@
 			}
 		}
 		
-		if (empty($go_ahead_volumes))  die ("No snapshots found for these volumes\n\n");
+		if (empty($go_ahead_volumes)){
+			$go_ahead_volumes=array();
+			echo("No snapshots found for these volumes\n\n");
+		}
 		
 		echo "\n";
 		
@@ -361,12 +364,12 @@
 				$tagName = (string)$instance->instancesSet->item->tagSet->item->value;
 				$instanceid = (string)$instance->instancesSet->item->instanceId;
 				$blockDevices = $instance->instancesSet->item->blockDeviceMapping->item;
+
 				$ebsVolumeId="";
+				
 				foreach ( $blockDevices as $volume ) {
 					if ( preg_match("/sda1/", $volume->deviceName) )
 						$ebsVolumeId = (string)$volume->ebs->volumeId;
-					else
-						$ebsVolumeId="";
 				}
 				
 				$output[] = array(
