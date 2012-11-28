@@ -295,7 +295,7 @@
 	
 	function createSnapshot($obj, $volumeId, $device) 
 	{
-		$instance = listInstances($obj);
+		$instance = listInstances($obj,INSTANCEID);
 		
 		$response = $obj->create_snapshot($volumeId, Array( "Description" => "AutoSnap: " . $instance[0]['tagName'] . " ".INSTANCEID." - " . $device . " (" . $volumeId . ") " . date('Ymd - H:i:s', time()) ));
 		
@@ -361,7 +361,7 @@
 				$tagName = (string)$instance->instancesSet->item->tagSet->item->value;
 				$instanceid = (string)$instance->instancesSet->item->instanceId;
 				$blockDevices = $instance->instancesSet->item->blockDeviceMapping->item;
-				
+				$ebsVolumeId="";
 				foreach ( $blockDevices as $volume ) {
 					if ( preg_match("/sda1/", $volume->deviceName) )
 						$ebsVolumeId = (string)$volume->ebs->volumeId;
