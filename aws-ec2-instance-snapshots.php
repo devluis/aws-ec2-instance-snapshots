@@ -6,7 +6,7 @@
  *
  * This script makes;
  * 1) a snapshot of each volume attached to the selected amazon aws ec2 instance.
- * 2) check for snapshot older than $keepfor seconds and delete it 
+ * 2) check for snapshot older than KEEPFOR option ( -t )  seconds and delete it 
  * 3) keep 1 snapshot each week and after a week 1 snapshot each month
  * 4) All snapshot with description start equal to "AutoSnap:" will be rotated by this script
  * 
@@ -14,12 +14,37 @@
  * Michele Marcucci
  * https://github.com/michelem09/AWS-EC2-Manage-Snapshots-Backup
  *
- * WARNING : USE AT YOU OWN RISK!!! This application will delete snapshots unless you use the --noop option
+ * @param v
+ *  The Instance ID of ec2 instance which you wish to manage.
+ * @param r
+ *  (Optional) Defaults to US-EAST-1.
+ *  The region where the snapshots are held.
+ *  Options include: us-e1, us-w1, us-w2, us-gov1, eu-w1, apac-se1, apac-ne1 AND sa-e1.
+ * @param t
+ *  (Optional) Default to 604 800 seconds ( 7 days )
+ *  The time in second to keep snapshot, snapshot older than will be deleted
+ * @param o
+ *  (Optional) Defaults to TRUE.
+ *  No operation mode, it won't *create* any snapshots. use -n -o to lock any create and delete action
+ * @param q
+ *  (Optional) Defaults to FALSE.
+ *  Quiet mode, no ouput.
+ * @param n
+ *  (Optional) Defaults to FALSE.
+ *  No operation mode, it won't *delete* any snapshots. use -n -o to lock any create and delete action
+ *
+ * Example usage:
+ * @code
+ * php aws-ec2-instance-snapshots.php -i=i-7ed55c04 -r=us-e1 -q -n -o -t 600
+ * @endcode
+ *
+ * WARNING : USE AT YOU OWN RISK!!! This application will delete snapshots unless you use the -o option
  **/
-	$instanceId="i-7ed55c04";
+	
 	// Enable full-blown error reporting.
 	error_reporting(-1);
-
+	// Debug overriding mode
+	define("DEBUG", FALSE);
 	// Set HTML headers
 	header("Content-type: text/html; charset=utf-8");
 
@@ -29,22 +54,87 @@
 	// Instantiate the AmazonEC2 class
 	$ec2 = new AmazonEC2();
 	
-	$ec2->set_region(AmazonEC2::REGION_US_E1);
+	/*** option selection ***/
 	
+	// Process paramters and setup constants
+	$parameters = getopt('i:r:t::qno');
 
-	$volumes = listVolumes($ec2,$instanceId);
-	//$snapshots = listSnapshots($ec2);
-
-	$docreate = true;
-	$dodelete = true;
-	//$keepfor = 7 * 24 * 60 * 60;
-	$keepfor = 600;
-
-	if( isset($response->body->Errors->Error)) { //check about auth error
-		echo "Error detected: ".$response->body->Errors->Error->Code." ".$response->body->Errors->Error->Message."\n";
-		die();
+	if (!isset($parameters['i'])) {
+	  exit('EC2 Instance ID required' . "\n");
+	} else {
+	  define("INSTANCEID", $parameters['i']);
 	}
 	
+	if (!isset($parameters['t'])) {
+	  $keepfor=7 * 24 * 60 * 60; //a week
+	  define("KEEPFOR",$keepfor);
+	} else {
+	  define("KEEPFOR",$parameters['t']);
+	}
+
+	if (isset($parameters['q']) || DEBUG) {
+	  define("QUIET", TRUE);
+	} else {
+	  define("QUIET", FALSE);
+	}
+
+	if (isset($parameters['n']) || DEBUG) {
+	  define("DODELETE", FALSE);
+	} else {
+	  define("DODELETE", TRUE);
+	}
+	
+	if (isset($parameters['o']) || DEBUG) {
+	  define("DOCREATE", FALSE);
+	} else {
+	  define("DOCREATE", TRUE);
+	}
+	
+	define("WEEK", 604800);
+	define("MONTH", 2678400);
+
+	// Instantiate the AmazonEC2 class
+	$ec2 = new AmazonEC2();
+
+	if (isset($parameters['r'])) {
+		switch($parameters['r']) {
+			case 'us-e1':
+				define("REGION", AmazonEC2::REGION_US_E1);
+				break;
+			case 'us-w1':
+				define("REGION",  AmazonEC2::REGION_US_W1);
+				break;
+			case 'us-w2':
+				define("REGION", AmazonEC2::REGION_US_W2);
+				break;
+			case 'us-gov1':
+				define("REGION", AmazonEC2::REGION_US_GOV1);
+				break;
+			case 'eu-w1':
+				define("REGION", AmazonEC2::REGION_EU_W1);
+				break;
+			case 'apac-se1':
+				define("REGION",  AmazonEC2::REGION_APAC_SE1);
+				break;
+			case 'apac-ne1':
+				define("REGION",  AmazonEC2::REGION_APAC_NE1);
+				break;
+			case 'sa-e1':
+				define("REGION", AmazonEC2::REGION_SA_E1);
+				break;
+
+			default:
+				define("REGION", AmazonEC2::REGION_US_E1);
+		}
+	} else {
+		define("REGION", AmazonEC2::REGION_US_E1);
+	}
+
+	// Set Region
+	$ec2->set_region(REGION);	
+	
+	$volumes = listVolumes($ec2,INSTANCEID);
+
 	// Create the snapshots
 	foreach ( $volumes as $volume ) {
 		$instance = listInstances($ec2, $volume['instanceId']);
@@ -53,40 +143,29 @@
 		{
 			// Set snap counter to zero
 			$count = 0;
-		
-			/*foreach ( $snapshots as $snapshot ) {*/
 
-				/*if ( $snapshot['volumeId'] == $volume['volumeId'] && $snapshot['status'] == "pending" )
-				{
-					echo "Skipping snapshot for volume[".$volume['volumeId']."] on instance ".$volume['instanceId']." ( ".$instance[0]['tagName']." ) \n";
-					echo "There is one still in pending status snapshot[".$snapshot['snapshotId']."]\n\n";
-				} 
-				elseif ( $snapshot['volumeId'] == $volume['volumeId'] ) 
-				{ */
-					// Get this only one time, we don't want to create duplicated snap
-					if ($count == 0)
+			if ($count == 0)
+			{
+				echo "Ready to create snapshot for volume[".$volume['volumeId']."] on instance ".$volume['instanceId']." ( ".$instance[0]['tagName']." ) ";
+
+				// and now really create it
+					if (DOCREATE) 
 					{
-						echo "Ready to create snapshot for volume[".$volume['volumeId']."] on instance ".$volume['instanceId']." ( ".$instance[0]['tagName']." ) ";
-
-						// and now really create it
-						if ($docreate) 
-						{
-							$response = createSnapshot($ec2, $volume['volumeId'], $volume['instanceId'], $volume['device']);			
-							$response=true;
-							if(isset($response)){
-								echo "Status: " . $response . "\n";
-								if($dodelete){ //new snapshot created, check for delete older
-									deleteSnapshot($ec2, $volume['volumeId'], $volume['instanceId'], $volume['device'],$keepfor);
-								}
-							}else{
-								echo "no response status given \n";
-							}
-						}
+						$response = createSnapshot($ec2, $volume['volumeId'], $volume['instanceId'], $volume['device']);			
 					}
-	
-					$count++;
-				/*} */
-			/*}	*/	
+					
+					if(isset($response)){
+						echo "Status: " . $response . "\n";
+						 //new snapshot created, check for delete older
+						deleteSnapshot($ec2, $volume['volumeId'], $volume['instanceId'], $volume['device']);
+					}else{
+						echo "no response status given \n";
+					}
+				
+			}
+
+			$count++;
+
 		}else{
 			echo "volume[".$volume['volumeId']."] on instance ".$volume['instanceId']." ( ".$instance[0]['tagName']." ) has status ".$volume['status']." \n";
 			
@@ -94,7 +173,7 @@
 	}
 
 
-	function deleteSnapshot($obj, $volumeId, $instanceId, $device,$keepfor){
+	function deleteSnapshot($obj, $volumeId, $device){
 
 		//get snapshop of this volumeId
 		//check creation date of each snapshot
@@ -106,8 +185,8 @@
 		// we don't want to delete all snapshots of a vol and be left with no snapshots, 
 		// this guarantees it. so we build a "go_ahead_volumes" array.
 		$now = time();
-		$older_than = $now - $keepfor;
-		
+		$older_than = $now - KEEPFOR;
+
 		$snapshots = listSnapshots($obj,$volumeId);
 
 		foreach ( $snapshots as $snapshot ) {
@@ -144,12 +223,20 @@
 			
 			if ( (in_array($snapshot['volumeId'], $go_ahead_volumes)) && $snapDesc=="AutoSnap:" )
 			{		
-				if (!keepSnapShot($snapshot['startTime'],$keepfor)) {			
-					echo "Deleting volume " . $snapshot['volumeId'] . " snapshot " . $snapshot['snapshotId'] . " created on: " . date('Y/m/d \a\t H:i:s e',$snapTimestamp) ."\n";
+				if (!keepSnapShot($snapshot['startTime'],KEEPFOR)) {			
+					echo "Deleting volume " . $snapshot['volumeId'] . " snapshot " . $snapshot['snapshotId'] . " created on: " . date('Y/m/d \a\t H:i:s e',$snapTimestamp) ." ";
 					
 					// and now really delete using EC2 library
-					$response = $obj->delete_snapshot($snapshot['snapshotId']);
-					echo "Status: " . (string)$response->status . "\n\n";
+					if(DODELETE)
+					{
+						$response = $obj->delete_snapshot($snapshot['snapshotId']);
+						if(isset($response->status)){
+							echo "Status: " . (string)$response->status . "\n";
+						}else{
+							echo "no response status given \n";
+						}
+					}
+					
 					
 				}
 					
@@ -206,21 +293,25 @@
 	//
 	// -------------------------------------------
 	
-	function createSnapshot($obj, $volumeId, $instanceId, $device) 
+	function createSnapshot($obj, $volumeId, $device) 
 	{
-		$instance = listInstances($obj, $instanceId);
+		$instance = listInstances($obj);
 		
-		$response = $obj->create_snapshot($volumeId, Array( "Description" => "AutoSnap: " . $instance[0]['tagName'] . " ".$instanceId." - " . $device . " (" . $volumeId . ") " . date('Ymd - H:i:s', time()) ));
+		$response = $obj->create_snapshot($volumeId, Array( "Description" => "AutoSnap: " . $instance[0]['tagName'] . " ".INSTANCEID." - " . $device . " (" . $volumeId . ") " . date('Ymd - H:i:s', time()) ));
 		
 		return (string)$response->body->status;
 	}
 	
-	function listVolumes($obj,$instanceId) 
+	function listVolumes($obj) 
 	{
 		$response = $obj->describe_volumes();
+		if( isset($response->body->Errors->Error)) { //check about auth error
+			echo "Error detected: ".$response->body->Errors->Error->Code." ".$response->body->Errors->Error->Message."\n";
+			die();
+		}
 		$output=array();
 		foreach ( $response->body->volumeSet->item as $item ) {
-			if((string)$item->attachmentSet->item->instanceId==$instanceId){
+			if((string)$item->attachmentSet->item->instanceId==INSTANCEID){
 				$volumeId = (string)$item->volumeId;
 				
 				$output[] = Array(
@@ -257,18 +348,18 @@
 		return $output;
 	}
 	
-	function listInstances($obj, $instanceId = null) 
+	function listInstances($obj, $instanceid = null) 
 	{
-		if (is_null($instanceId))
+		if (is_null($instanceid))
 			$response = $obj->describe_instances();
 		else
-			$response = $obj->describe_instances(Array("InstanceId" => $instanceId));
+			$response = $obj->describe_instances(Array("InstanceId" => $instanceid));
 	
 		if ( $response->body->reservationSet->item )
 		{
 			foreach ($response->body->reservationSet->item as $instance) {
 				$tagName = (string)$instance->instancesSet->item->tagSet->item->value;
-				$instanceId = (string)$instance->instancesSet->item->instanceId;
+				$instanceid = (string)$instance->instancesSet->item->instanceId;
 				$blockDevices = $instance->instancesSet->item->blockDeviceMapping->item;
 				
 				foreach ( $blockDevices as $volume ) {
@@ -278,7 +369,7 @@
 				
 				$output[] = array(
 					"tagName" => $tagName, 
-					"instanceId" => $instanceId, 
+					"instanceId" => $instanceid, 
 					"ebsVolumeId" => $ebsVolumeId
 				);
 			}
