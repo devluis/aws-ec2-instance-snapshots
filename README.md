@@ -44,10 +44,8 @@ Do a snapshot of each volumes attached to instance with id i-7ed55c04 and delete
     00 00 * * * /usr/bin/php /home/fabio/admin/aws-ec2-instance-snapshots.php -i=i-7ed55c04
 
 ###Thanks
-  Modified from code by:
-  Michele Marcucci
-  https://github.com/michelem09/AWS-EC2-Manage-Snapshots-Backup
- 
- 
- 
+  some codes taken from;
+  * https://github.com/michelem09/AWS-EC2-Manage-Snapshots-Backup
+  * http://www.thecloudsaga.com/aws-ec2-manage-snapshots/
+  
 WARNING : USE AT YOU OWN RISK!!! This application will delete snapshots with description starting with "AutoSnap:" unless you use the -o option
