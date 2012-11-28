@@ -365,6 +365,8 @@
 				foreach ( $blockDevices as $volume ) {
 					if ( preg_match("/sda1/", $volume->deviceName) )
 						$ebsVolumeId = (string)$volume->ebs->volumeId;
+					else
+						$ebsVolumeId="";
 				}
 				
 				$output[] = array(
