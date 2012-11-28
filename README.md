@@ -19,6 +19,7 @@ $ cp config-sample.inc.php config.inc.php
 
 edit config.inc.php and set access key and secret key from aws account security 
 
+Look for your ec2 instance instance-id and go with php aws-ec2-instance-snapshots.php -i=YOURINSTANCEID -r=YOURREGION
 
   
 ### Parameters and options
