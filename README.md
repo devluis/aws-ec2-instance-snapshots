@@ -4,8 +4,10 @@
  
 ### This script makes;
 * a snapshot of each volume attached to the selected amazon aws ec2 instance.
-* check for snapshot older than KEEPFOR option ( -t )  seconds and delete it 
-* keep 1 snapshot each week and after a week 1 snapshot each month
+* check for snapshot older than KEEPFOR option ( -t ) seconds, 7 day default, and delete it 
+* keep 1 snapshop for each day of the last week
+* keep 1 snapshot each week  of the last month
+* keep 1 snapshot each month
 * All snapshot with description start equal to "AutoSnap:" will be rotated by this script
   
 ### Parameters and options
