@@ -55,7 +55,10 @@ Do a snapshot of each volumes attached to instance with id i-7ed55c04 and delete
 
 
 ###Crontab Example:
+
     00 00 * * * /usr/bin/php /home/fabio/admin/aws-ec2-instance-snapshots.php -i=i-7ed55c04
+or
+    00 00 * * * /usr/bin/php /home/ubuntu/aws-ec2-instance-snapshots/aws-ec2-instance-snapshots.php -i=i-66e22c2d -r=eu-w1
 
 ###Thanks
   some code snippet taken from:
