@@ -151,7 +151,7 @@
 				// and now really create it
 					if (DOCREATE) 
 					{
-						$response = createSnapshot($ec2, $volume['volumeId'], $volume['instanceId'], $volume['device']);			
+						$response = createSnapshot($ec2, $volume['volumeId'], $volume['device']);			
 					}
 					
 					if(isset($response)){
